@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import DeleteAlert from '../users/DeleteAlert';
+import DeleteAlert from './DeleteAlert';
 
 function Home() {
     const [patients, setPatients] = useState([]);
