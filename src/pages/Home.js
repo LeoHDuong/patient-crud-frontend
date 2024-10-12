@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 import DeleteAlert from './DeleteAlert';
+import Container from '../component/Container';
+import { Alert } from '@mui/material';
 
 function Home() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    const userRoles = decodedToken.roles.map(role => role.replace("ROLE_", ""));
+    
+    // Access control based on user roles
+    const hasEditAccess = (userRoles.includes("EDITOR") || userRoles.includes("ADMIN"));
+    
+    // State definitions
     const [patients, setPatients] = useState([]);
     const [filters, setFilters] = useState({
-        index: '',         // Added index filter
+        index: '',
         firstName: '',
         lastName: '',
         gender: '',
@@ -15,39 +27,13 @@ function Home() {
         phoneNumber: ''
     });
     const [appliedFilters, setAppliedFilters] = useState({}); // For filters after applying
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(1);
     const [patientsPerPage] = useState(5);
 
+    // Apply search parameters to filters on page load
     useEffect(() => {
-        // Check if user is authenticated (i.e., if token exists)
-        const token = localStorage.getItem('token');
-        if (!token) {
-            navigate('/login'); // Redirect to login if token doesn't exist
-        } else {
-            // Fetch patient data
-            const fetchPatients = async () => {
-                try {
-                    const response = await axios.get('http://localhost:8080/patients', {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
-                    });
-                    setPatients(response.data);
-                } catch (error) {
-                    console.error('Error updating patient:', error.response.data);
-                }
-            };
-
-            fetchPatients();
-        }
-    }, [navigate]);
-
-    useEffect(() => {
-        // Apply URL search parameters to filters on load
         setFilters({
-            index: searchParams.get('index') || '',    // Apply index filter from URL params
+            index: searchParams.get('index') || '',
             firstName: searchParams.get('firstName') || '',
             lastName: searchParams.get('lastName') || '',
             gender: searchParams.get('gender') || '',
@@ -57,41 +43,11 @@ function Home() {
         });
     }, [searchParams]);
 
-    // Handle filter input changes
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFilters({
-            ...filters,
-            [name]: value
-        });
-    };
-
-    // Handle apply filter button
-    const handleApplyFilter = () => {
-        // Set applied filters based on the current filter values
-        setAppliedFilters(filters);
-
-        // Set URL search parameters based on the filter values
-        const params = {};
-        Object.keys(filters).forEach((key) => {
-            if (filters[key]) {
-                params[key] = filters[key];
-            }
-        });
-        setSearchParams(params);
-    };
-
-    const handlePageChange = (newPage) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
-        }
-    };
-
-    // Filter patients based on the applied filters
+    // Filter patients based on applied filters
     const filteredPatients = patients.filter((patient, index) => {
-        const patientIndex = index + 1; // Index starts from 1 in the table
+        const patientIndex = index + 1;
         return (
-            (!appliedFilters.index || patientIndex.toString().includes(appliedFilters.index)) && // Filter by index
+            (!appliedFilters.index || patientIndex === Number(appliedFilters.index)) &&
             (!appliedFilters.firstName || patient.firstName.toLowerCase().includes(appliedFilters.firstName.toLowerCase())) &&
             (!appliedFilters.lastName || patient.lastName.toLowerCase().includes(appliedFilters.lastName.toLowerCase())) &&
             (!appliedFilters.gender || patient.gender.toLowerCase().includes(appliedFilters.gender.toLowerCase())) &&
@@ -101,13 +57,70 @@ function Home() {
         );
     });
 
+    // Derived variables for pagination
     const indexOfLastPatient = currentPage * patientsPerPage;
     const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
     const currentPatients = filteredPatients.slice(indexOfFirstPatient, indexOfLastPatient);
     const totalPages = Math.ceil(filteredPatients.length / patientsPerPage);
+    const [noPatientFound, setNoPatientFound] = useState(false);
+    
+    // Fetch patients data on initial render
+    useEffect(() => {
+        const fetchPatients = async () => {
+            try {
+                const response = await axios.get(`http://localhost:8080/patients`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params: { page: 0, limit: 100 }
+                });
+                setPatients(response.data);
+            } catch (error) {
+                console.error('Error fetching patients:', error.response.data);
+            }
+        };
+    
+        fetchPatients();
+    }, [currentPage, patientsPerPage, token]);
+    
+
+    useEffect(() => {
+        setCurrentPage(totalPages > 0 ? 1 : 0);
+        setNoPatientFound(totalPages > 0 ? false : true)
+    }, [totalPages]);
+
+    // Handle input change for filters
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFilters({ ...filters, [name]: value });
+    };
+
+    // Handle filter application
+    const handleApplyFilter = () => {
+        setAppliedFilters(filters);
+
+        const params = {};
+        Object.keys(filters).forEach((key) => {
+            if (filters[key]) {
+                params[key] = filters[key];
+            }
+        });
+        setSearchParams(params);
+    };
+
+    // Handle page change
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
 
     return (
         <div className='container'>
+            {noPatientFound && (
+            <Container>
+                <Alert severity="warning">
+                    No patient found!
+                </Alert>
+            </Container>)}
             <div className='py-4'>
                 {/* Filter Inputs */}
                 <div className="row mb-3">
@@ -117,7 +130,7 @@ function Home() {
                             className="form-control"
                             placeholder="Index"
                             name="index"
-                            value={filters.index}  // Added index input field
+                            value={filters.index}
                             onChange={handleInputChange}
                         />
                     </div>
@@ -199,7 +212,9 @@ function Home() {
                             <th scope="col">Age</th>
                             <th scope="col">Email</th>
                             <th scope="col">Phone Number</th>
-                            <th scope="col">Action</th>
+                            {hasEditAccess && (
+                                <th scope="col">Action</th>
+                            )}
                         </tr>
                     </thead>
                     <tbody>
@@ -212,27 +227,33 @@ function Home() {
                                 <td>{patient.age}</td>
                                 <td>{patient.email}</td>
                                 <td>{patient.phoneNumber}</td>
-                                <td>
-                                    <Link to={`/editpatient/${patient.id}`} className='btn btn-outline-primary mx-2'>
-                                        Edit
-                                    </Link>
-                                    <DeleteAlert
-                                        patientId={patient.id}
-                                        onPatientDeleted={(deletedId) => {
-                                            setPatients((prev) => prev.filter((p) => p.id !== deletedId));
-                                        }}
-                                    />
-                                </td>
+                                {hasEditAccess && (
+                                    <td>
+                                        <Link to={`/editpatient/${patient.id}`} className='btn btn-outline-primary mx-2'>
+                                            Edit
+                                        </Link>
+                                        {userRoles.includes('ADMIN') && (
+                                            <DeleteAlert
+                                                patientId={patient.id}
+                                                onPatientDeleted={(deletedId) => {
+                                                    setPatients((prev) => prev.filter((p) => p.id !== deletedId));
+                                                }}
+                                            />
+                                        )}
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
                 </table>
+
+                {/* Pagination and Create Patient Button */}
                 <div className="d-flex justify-content-between align-items-center mt-3">
                     <div>
                         <button
                             className="btn btn-secondary me-2"
                             onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
+                            disabled={currentPage === 1 || currentPage === 0}
                         >
                             Previous
                         </button>
@@ -245,9 +266,11 @@ function Home() {
                             Next
                         </button>
                     </div>
-                    <Link to="/createpatient" className="btn btn-primary">
-                        Create Patient
-                    </Link>
+                    {hasEditAccess && (
+                        <Link to="/createpatient" className="btn btn-primary">
+                            Create Patient
+                        </Link>
+                    )}
                 </div>
             </div>
         </div>
