@@ -1,16 +1,15 @@
 import React from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Container from '../component/Container';
 
-const PatientAdjustmentConfirmation = () => {
-    const {id} = useParams();
+const CreationConfirmation = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { patient } = location.state;
 
     const handleCancel = () => {
-        navigate(`/editpatient/${id}`, { state: { patient } }); // Navigate back to the patient creation form
+        navigate('/createpatient', { state: { patient } }); // Navigate back to the patient creation form
     };
 
     const handleSave = async () => {
@@ -18,21 +17,23 @@ const PatientAdjustmentConfirmation = () => {
         const token = localStorage.getItem('token');
 
         try {
-            await axios.put(`http://localhost:8080/patients/${id}`, patient, {
+            // Make POST request to add patient
+            await axios.post('http://localhost:8080/patients', patient, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
-            navigate('/success-edit'); // Redirect back to the home page after successful update
+
+            navigate('/success-create');
         } catch (error) {
-            console.error('Error updating patient:', error.response.data);
+            console.error('Error adding patient:', error.response.data);
         }
     };
 
     return (
         <Container>
-            <h2>Confirm Patient Adjustment</h2>
+            <h2>Confirm Patient Creation</h2>
             <div>
                 <h4>Patient Details</h4>
                 <p><strong>First Name:</strong> {patient.firstName}</p>
@@ -48,4 +49,4 @@ const PatientAdjustmentConfirmation = () => {
     );
 };
 
-export default PatientAdjustmentConfirmation;
+export default CreationConfirmation;

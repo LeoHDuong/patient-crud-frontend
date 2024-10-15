@@ -25,8 +25,7 @@ const PrivateRoute = ({ children, roles }) => {
         return <Navigate to="/unauthorized" />;
     }
 
-    // If everything is valid, pass along the login state
-    return React.cloneElement(children, { state: { login: true } });
+    return children;
 };
 
 export default PrivateRoute;

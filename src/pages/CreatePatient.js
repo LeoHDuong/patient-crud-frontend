@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
 import Container from '../component/Container';
 
-function AddPatient() {
+function CreatePatient() {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -137,4 +137,4 @@ function AddPatient() {
     );
 }
 
-export default AddPatient;
+export default CreatePatient;

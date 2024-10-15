@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-import DeleteAlert from './DeleteAlert';
+import DeleteAlert from '../component/DeleteAlert';
 import Container from '../component/Container';
 import { Alert } from '@mui/material';
 

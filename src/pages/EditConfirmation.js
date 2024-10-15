@@ -1,15 +1,16 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import Container from '../component/Container';
 
-const PatientCreationConfirmation = () => {
+const EditConfirmation = () => {
+    const {id} = useParams();
     const navigate = useNavigate();
     const location = useLocation();
     const { patient } = location.state;
 
     const handleCancel = () => {
-        navigate('/createpatient', { state: { patient } }); // Navigate back to the patient creation form
+        navigate(`/editpatient/${id}`, { state: { patient } }); // Navigate back to the patient creation form
     };
 
     const handleSave = async () => {
@@ -17,23 +18,21 @@ const PatientCreationConfirmation = () => {
         const token = localStorage.getItem('token');
 
         try {
-            // Make POST request to add patient
-            await axios.post('http://localhost:8080/patients', patient, {
+            await axios.put(`http://localhost:8080/patients/${id}`, patient, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
-
-            navigate('/success-create');
+            navigate('/success-edit'); // Redirect back to the home page after successful update
         } catch (error) {
-            console.error('Error adding patient:', error.response.data);
+            console.error('Error updating patient:', error.response.data);
         }
     };
 
     return (
         <Container>
-            <h2>Confirm Patient Creation</h2>
+            <h2>Confirm Patient Adjustment</h2>
             <div>
                 <h4>Patient Details</h4>
                 <p><strong>First Name:</strong> {patient.firstName}</p>
@@ -49,4 +48,4 @@ const PatientCreationConfirmation = () => {
     );
 };
 
-export default PatientCreationConfirmation;
+export default EditConfirmation;
